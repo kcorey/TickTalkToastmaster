@@ -29,6 +29,9 @@ class TimerApp {
         }
         
         this.setupEventListeners();
+        
+        // Initialize audio context for feedback
+        this.initAudioFeedback();
     }
     
     // Save timer data to localStorage
@@ -920,14 +923,12 @@ class TimerApp {
             thresholds.push((mins * 60) + secs);
         }
         
-        // Check if we've just crossed a threshold
-        let vibrationPattern = null;
+        let thresholdCrossed = null;
         
         // Update background color and determine vibration
         if (seconds === thresholds[3]) {
-            // Bell threshold
             document.body.className = 'red';
-            vibrationPattern = [300, 100, 300, 100, 300]; // Long vibration pattern for bell
+            thresholdCrossed = 3;
             
             // Play bell if bell is enabled
             const timer = this.timers.find(t => t.id == timerId);
@@ -935,17 +936,14 @@ class TimerApp {
                 this.playBellSound();
             }
         } else if (seconds === thresholds[2]) {
-            // Red threshold
             document.body.className = 'red';
-            vibrationPattern = [200, 100, 200]; // Medium vibration for red
+            thresholdCrossed = 2;
         } else if (seconds === thresholds[1]) {
-            // Yellow threshold
             document.body.className = 'yellow';
-            vibrationPattern = [150, 100]; // Short vibration for yellow
+            thresholdCrossed = 1;
         } else if (seconds === thresholds[0]) {
-            // Green threshold
             document.body.className = 'green';
-            vibrationPattern = [100]; // Single short vibration for green
+            thresholdCrossed = 0;
         } else if (seconds > thresholds[3]) {
             document.body.className = 'red';
         } else if (seconds > thresholds[2]) {
@@ -958,9 +956,20 @@ class TimerApp {
             document.body.className = 'grey';
         }
         
-        // Trigger vibration if a pattern is set and vibration is supported
-        if (vibrationPattern && 'vibrate' in navigator) {
-            navigator.vibrate(vibrationPattern);
+        // Provide feedback when crossing thresholds
+        if (thresholdCrossed !== null) {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            
+            if (!isIOS && 'vibrate' in navigator) {
+                // Use vibration on supported devices
+                const vibrationPattern = thresholdCrossed === 3 ? [300, 100, 300, 100, 300] :
+                                         thresholdCrossed === 2 ? [200, 100, 200] :
+                                         thresholdCrossed === 1 ? [150, 100] : [100];
+                navigator.vibrate(vibrationPattern);
+            } else {
+                // Use tactile bass on iOS
+                this.playTactileBass(thresholdCrossed);
+            }
         }
     }
     
@@ -969,5 +978,94 @@ class TimerApp {
             this.bellSound.currentTime = 0;
             this.bellSound.play().catch(e => console.log('Error playing sound:', e));
         }
+    }
+    
+    initAudioFeedback() {
+        // We need to create the audio context after a user interaction
+        // due to iOS restrictions on audio autoplay
+        this.audioInitialized = false;
+        
+        // Add a one-time initialization for the audio
+        document.addEventListener('click', () => {
+            if (!this.audioInitialized) {
+                // Create audio context
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                this.audioInitialized = true;
+                console.log('Audio context initialized');
+            }
+        }, { once: true });
+    }
+    
+    // Add this new method to play tactile bass tones
+    playTactileBass(threshold) {
+        if (!this.audioContext || !this.audioInitialized) return;
+        
+        // Create bass oscillator
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+        
+        // Set different patterns based on threshold
+        let frequency, duration, pattern;
+        
+        switch(threshold) {
+            case 0: // Green
+                frequency = 55; // A1 note
+                duration = 300;
+                pattern = [1];
+                break;
+            case 1: // Yellow
+                frequency = 49; // G1 note
+                duration = 300;
+                pattern = [1, 0.5, 1];
+                break;
+            case 2: // Red
+                frequency = 44; // F1 note
+                duration = 400;
+                pattern = [1, 0.5, 1, 0.5, 1];
+                break;
+            case 3: // Bell
+                frequency = 33; // E1 note
+                duration = 500;
+                pattern = [1, 0.5, 1, 0.5, 1, 0.5, 1];
+                break;
+        }
+        
+        // Play the pattern
+        this.playBassPattern(frequency, duration, pattern);
+    }
+    
+    playBassPattern(frequency, duration, pattern) {
+        let time = this.audioContext.currentTime;
+        
+        // Play each pulse in the pattern
+        pattern.forEach((value, index) => {
+            if (value > 0) {
+                // Create oscillator for this pulse
+                const oscillator = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+                
+                // Use a combination of frequencies for stronger effect
+                oscillator.type = 'sine';
+                oscillator.frequency.value = frequency;
+                
+                // Set volume (not too loud, but enough to feel)
+                gainNode.gain.value = 0.7;
+                
+                // Connect and schedule
+                oscillator.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+                
+                // Schedule start and stop
+                oscillator.start(time);
+                oscillator.stop(time + (duration/1000));
+                
+                // Quick fade out to avoid clicks
+                gainNode.gain.setValueAtTime(0.7, time);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, time + (duration/1000));
+            }
+            
+            // Move time forward for next pulse
+            time += (duration / 1000) * (index < pattern.length - 1 ? 1.2 : 0);
+        });
     }
 } 
