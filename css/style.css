@@ -41,6 +41,12 @@ body.red { background-color: var(--red); }
     max-height: 90vh;
     overflow-y: auto;
     padding-top: 10px;
+    transition: opacity 0.3s ease;
+}
+
+.timer-dialog.dimmed {
+    opacity: 0.3;
+    transition: opacity 0.3s ease;
 }
 
 .header {
@@ -288,8 +294,8 @@ button:not(.add-timer-btn) {
 .time-wheel-container {
     background-color: white;
     border-radius: 50%;
-    width: 280px;
-    height: 280px;
+    width: 300px;
+    height: 300px;
     position: relative;
     display: flex;
     justify-content: center;
@@ -298,8 +304,8 @@ button:not(.add-timer-btn) {
 }
 
 .time-wheel {
-    width: 240px;
-    height: 240px;
+    width: 260px;
+    height: 260px;
     border-radius: 50%;
     position: relative;
     background-color: #f5f5f5;
@@ -307,34 +313,74 @@ button:not(.add-timer-btn) {
     touch-action: none;
 }
 
-.selected-time {
-    position: absolute;
-    font-size: 28px;
-    font-weight: bold;
-    color: #333;
-}
-
-.wheel-marker {
+/* Rotator element that contains all markers */
+.wheel-rotator {
     position: absolute;
     width: 100%;
     height: 100%;
     top: 0;
     left: 0;
-    pointer-events: none;
+    transition: transform 0.1s ease-out; /* Smooth rotation */
 }
 
+/* Container for each marker and its text */
+.wheel-marker-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform-origin: center;
+}
+
+/* Marker line */
 .wheel-marker-line {
     position: absolute;
     width: 2px;
     background-color: rgba(0, 0, 0, 0.2);
-    transform-origin: bottom center;
+    height: 20px; /* Default height, will be overridden for some */
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
 }
 
+/* Text labels */
 .wheel-marker-text {
     position: absolute;
-    transform-origin: center;
+    top: 25px; /* Position below the marker line */
+    left: 50%;
+    transform: translateX(-50%);
     font-size: 12px;
-    color: #666;
+    color: #333;
+    white-space: nowrap;
+    /* Ensure text is aligned with the tangent of the circle */
+    text-align: center;
+}
+
+/* Selected time display */
+.selected-time {
+    position: absolute;
+    font-size: 32px;
+    font-weight: bold;
+    color: #333;
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 5px 10px;
+    border-radius: 5px;
+    z-index: 10;
+}
+
+/* Highlight marker at top (12 o'clock position) */
+.time-wheel::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    height: 30px;
+    width: 4px;
+    background-color: #FF5722;
+    transform: translateX(-50%);
+    z-index: 5;
+    border-radius: 0 0 2px 2px;
 }
 
 .global-controls {
