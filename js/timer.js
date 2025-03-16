@@ -998,11 +998,15 @@ class TimerApp {
     // Play a threshold sound based on which threshold was crossed
     playThresholdSound(threshold) {
         if (this.isIOS) {
-            if (this.iosSounds && this.iosSounds.lowbeep) {
-                this.iosSounds.lowbeep.currentTime = 0;
-                // Adjust volume based on threshold
-                this.iosSounds.lowbeep.volume = 0.1 + (threshold * 0.05);
-                this.iosSounds.lowbeep.play().catch(e => console.error(`iOS threshold sound error:`, e));
+            // On iOS, use the bell sound at lower volumes for all thresholds
+            if (this.iosSounds && this.iosSounds.bell) {
+                this.iosSounds.bell.currentTime = 0;
+                
+                // Use different volumes based on threshold
+                const volume = 0.1 + (threshold * 0.1); // 0.1, 0.2, 0.3 for each threshold
+                this.iosSounds.bell.volume = volume;
+                
+                this.iosSounds.bell.play().catch(e => console.error(`iOS threshold sound error:`, e));
             }
         } else if (this.thresholdSounds) {
             // Original non-iOS handling
@@ -1054,11 +1058,44 @@ class TimerApp {
                 // Mark this threshold as crossed
                 this.crossedThresholds[timerId][i] = true;
                 
-                // Update background color based on threshold
-                document.body.className = '';
-                if (i === 0) document.body.classList.add('green-phase');
-                if (i === 1) document.body.classList.add('yellow-phase');
-                if (i === 2) document.body.classList.add('red-phase');
+                // Reset all phase classes from both body and html
+                document.body.classList.remove('green-phase', 'yellow-phase', 'red-phase');
+                document.documentElement.classList.remove('green-phase', 'yellow-phase', 'red-phase');
+                
+                // Apply phase class to both html and body elements for better Safari support
+                if (i === 0) {
+                    document.body.classList.add('green-phase');
+                    document.documentElement.classList.add('green-phase');
+                    
+                    // Force a repaint on iOS Safari
+                    if (this.isIOS) {
+                        document.body.style.display = 'none';
+                        document.body.offsetHeight; // Force a repaint
+                        document.body.style.display = '';
+                    }
+                }
+                if (i === 1) {
+                    document.body.classList.add('yellow-phase');
+                    document.documentElement.classList.add('yellow-phase');
+                    
+                    // Force a repaint on iOS Safari
+                    if (this.isIOS) {
+                        document.body.style.display = 'none';
+                        document.body.offsetHeight; // Force a repaint
+                        document.body.style.display = '';
+                    }
+                }
+                if (i === 2) {
+                    document.body.classList.add('red-phase');
+                    document.documentElement.classList.add('red-phase');
+                    
+                    // Force a repaint on iOS Safari
+                    if (this.isIOS) {
+                        document.body.style.display = 'none';
+                        document.body.offsetHeight; // Force a repaint
+                        document.body.style.display = '';
+                    }
+                }
                 
                 // For bell threshold, play bell if enabled
                 if (i === 3 && timer.bellEnabled) {
@@ -1129,7 +1166,8 @@ class TimerApp {
         }
         
         // Reset the body class
-        document.body.className = '';
+        document.body.classList.remove('green-phase', 'yellow-phase', 'red-phase');
+        document.documentElement.classList.remove('green-phase', 'yellow-phase', 'red-phase');
         
         // Reset the crossed thresholds
         this.crossedThresholds = {};
@@ -1165,10 +1203,9 @@ class TimerApp {
         // Add the button to the DOM
         document.body.appendChild(audioUnlockBtn);
         
-        // Create a new implementation of audio for iOS
+        // Create a new implementation of audio for iOS - ONLY USE BELL.MP3
         this.iosSounds = {
-            lowbeep: new Audio('sounds/lowbeep.mp3'),
-            bell: this.bellSound || new Audio('sounds/bell.mp3')
+            bell: new Audio('sounds/bell.mp3')
         };
         
         // Apply iOS-specific attributes to all sounds
@@ -1188,7 +1225,7 @@ class TimerApp {
                     .then(() => {
                         sound.pause();
                         sound.currentTime = 0;
-                        sound.volume = key === 'bell' ? 1.0 : 0.2; // Reset volume
+                        sound.volume = 1.0; // Reset volume
                         console.log(`iOS sound ${key} unlocked`);
                     })
                     .catch(e => console.error(`Failed to unlock iOS sound ${key}:`, e));
@@ -1213,25 +1250,6 @@ class TimerApp {
             // Remove message after 2 seconds
             setTimeout(() => msg.remove(), 2000);
         });
-        
-        // Also unlock on any user interaction
-        const unlockOnInteraction = () => {
-            // Try to play the low beep sound
-            if (this.iosSounds.lowbeep) {
-                this.iosSounds.lowbeep.volume = 0.01;
-                this.iosSounds.lowbeep.play()
-                    .then(() => {
-                        this.iosSounds.lowbeep.pause();
-                        this.iosSounds.lowbeep.currentTime = 0;
-                        this.iosSounds.lowbeep.volume = 0.2;
-                    })
-                    .catch(e => console.error("Auto-unlock failed:", e));
-            }
-        };
-        
-        // Add event listeners for auto-unlock
-        document.addEventListener('touchstart', unlockOnInteraction, {once: true});
-        document.addEventListener('click', unlockOnInteraction, {once: true});
     }
 
     // Add this new method

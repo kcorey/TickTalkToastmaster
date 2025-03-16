@@ -5,27 +5,42 @@ body {
     background-color: #f0f0f0 !important; /* Default gray */
     transition: background-color 0.5s ease;
     -webkit-transition: background-color 0.5s ease; /* For Safari */
+    min-height: 100vh;
+    width: 100%;
+    margin: 0;
+    padding: 0;
 }
 
+html.green-phase body,
 body.green-phase {
     background-color: #d4edda !important; /* Green */
 }
 
+html.yellow-phase body,
 body.yellow-phase {
     background-color: #fff3cd !important; /* Yellow */
 }
 
+html.red-phase body,
 body.red-phase {
     background-color: #f8d7da !important; /* Red */
 }
 
 /* Add this for iOS Safari-specific fix */
 @supports (-webkit-touch-callout: none) {
-    /* iOS-specific styles */
-    body, html {
+    html, body {
         height: 100%;
-        width: 100%;
-        position: fixed;
+        min-height: 100%;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    main {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
         overflow: auto;
         -webkit-overflow-scrolling: touch;
     }
