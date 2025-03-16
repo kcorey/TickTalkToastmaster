@@ -11,17 +11,14 @@
 <body class="grey">
     <div class="container">
         <div class="timer-dialog">
-            <h1>Timer App</h1>
+            <div class="header">
+                <h1>Timer App</h1>
+                <button id="add-timer-btn" class="add-timer-btn">+</button>
+            </div>
             <div class="timers-container" id="timers-container">
                 <!-- Timers will be added here dynamically -->
                 <div class="timer" data-id="1">
-                    <div class="timer-display">
-                        <span class="timer-label">Timer 1</span>
-                        <span class="timer-time" id="current-time-1">00:00</span>
-                    </div>
-                    <div class="timer-controls">
-                        <button class="start-btn" data-id="1">Start</button>
-                    </div>
+                    <div class="timer-title">Timer 1</div>
                     <div class="timer-thresholds">
                         <div class="threshold" data-point="1" data-id="1">
                             <span class="threshold-label">Green</span>
@@ -40,11 +37,14 @@
                             <span class="threshold-time" id="threshold-4-1">04:00</span>
                         </div>
                     </div>
+                    <button class="start-btn" data-id="1">Start</button>
                 </div>
             </div>
             <div class="global-controls">
-                <button id="stop-all-btn" class="stop-btn">Stop All</button>
-                <button id="add-timer-btn">Add Timer</button>
+                <div class="stop-container">
+                    <button class="stop-btn" disabled>Stop</button>
+                    <div class="elapsed-time">00:00</div>
+                </div>
             </div>
         </div>
     </div>

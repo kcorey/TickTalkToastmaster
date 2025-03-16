@@ -4,12 +4,17 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Register service worker for offline functionality
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/service-worker.js')
-            .then(registration => {
-                console.log('Service Worker registered with scope:', registration.scope);
-            })
-            .catch(error => {
-                console.error('Service Worker registration failed:', error);
-            });
+        // Check if we're running on a proper origin (not file://)
+        if (window.location.protocol.startsWith('http')) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(registration => {
+                    console.log('Service Worker registered with scope:', registration.scope);
+                })
+                .catch(error => {
+                    console.error('Service Worker registration failed:', error);
+                });
+        } else {
+            console.log('Service Worker not registered: Running from file:// URL. Use a web server for full PWA functionality.');
+        }
     }
 }); 

@@ -1,38 +1,73 @@
 class TimerApp {
     constructor() {
-        this.timers = [];
+        this.timers = [
+            {
+                id: 1,
+                running: false,
+                startTime: null,
+                elapsed: 0,
+                interval: null
+            }
+        ]; // Initialize with the first timer
         this.activeTimerId = null;
         this.currentThreshold = null;
         this.currentTimerId = null;
+        
+        // Find elements - using querySelector for flexibility
         this.bellSound = document.getElementById('bell-sound');
+        this.timePickerOverlay = document.querySelector('.overlay');
+        this.timeWheel = document.querySelector('.time-wheel');
+        this.selectedTimeDisplay = document.querySelector('.selected-time');
+        this.elapsedTimeDisplay = document.querySelector('.elapsed-time');
+        this.stopButton = document.querySelector('.stop-btn');  // Using class instead of ID
+        this.addTimerButton = document.querySelector('#add-timer-btn');
         
-        // Elements
-        this.timePickerOverlay = document.getElementById('time-picker-overlay');
-        this.timeWheel = document.getElementById('time-wheel');
-        this.selectedTimeDisplay = document.getElementById('selected-time');
+        // Ensure stop button is disabled initially
+        if (this.stopButton) {
+            this.stopButton.disabled = true;
+        }
         
-        this.setupTimeWheel();
+        // Only setup components if elements are found
+        if (this.timeWheel) {
+            this.setupTimeWheel();
+        } else {
+            console.error("Time wheel element not found!");
+        }
+        
         this.setupEventListeners();
     }
     
     setupEventListeners() {
-        // Global stop button
-        document.getElementById('stop-all-btn').addEventListener('click', () => this.stopAllTimers());
+        // Global stop button - using class selector for flexibility
+        if (this.stopButton) {
+            this.stopButton.addEventListener('click', () => this.stopAllTimers());
+        } else {
+            console.error("Stop button element not found!");
+        }
         
         // Add timer button
-        document.getElementById('add-timer-btn').addEventListener('click', () => this.addNewTimer());
+        if (this.addTimerButton) {
+            this.addTimerButton.addEventListener('click', () => this.addNewTimer());
+        } else {
+            console.error("Add timer button element not found!");
+        }
         
         // Start buttons and threshold clicks
         document.addEventListener('click', (e) => {
             // Start button click
             if (e.target.classList.contains('start-btn')) {
                 const timerId = e.target.dataset.id;
-                this.startTimer(timerId);
+                // Only start if timer is not in inactive state
+                if (!e.target.closest('.timer').classList.contains('inactive')) {
+                    this.startTimer(timerId);
+                }
             }
             
             // Threshold click to open time wheel
-            if (e.target.classList.contains('threshold') || 
-                e.target.parentElement.classList.contains('threshold')) {
+            if ((e.target.classList.contains('threshold') || 
+                e.target.parentElement.classList.contains('threshold')) &&
+                !e.target.closest('.timer').classList.contains('inactive')) {
+                
                 const thresholdEl = e.target.classList.contains('threshold') ? 
                     e.target : e.target.parentElement;
                 
@@ -43,11 +78,15 @@ class TimerApp {
         });
         
         // Close time wheel when clicking outside
-        this.timePickerOverlay.addEventListener('click', (e) => {
-            if (e.target === this.timePickerOverlay) {
-                this.closeTimeWheel();
-            }
-        });
+        if (this.timePickerOverlay) {
+            this.timePickerOverlay.addEventListener('click', (e) => {
+                if (e.target === this.timePickerOverlay) {
+                    this.closeTimeWheel();
+                }
+            });
+        } else {
+            console.error("Time picker overlay element not found!");
+        }
     }
     
     setupTimeWheel() {
@@ -208,13 +247,7 @@ class TimerApp {
         
         const timerTemplate = `
             <div class="timer" data-id="${newTimerId}">
-                <div class="timer-display">
-                    <span class="timer-label">Timer ${newTimerId}</span>
-                    <span class="timer-time" id="current-time-${newTimerId}">00:00</span>
-                </div>
-                <div class="timer-controls">
-                    <button class="start-btn" data-id="${newTimerId}">Start</button>
-                </div>
+                <div class="timer-title">Timer ${newTimerId}</div>
                 <div class="timer-thresholds">
                     <div class="threshold" data-point="1" data-id="${newTimerId}">
                         <span class="threshold-label">Green</span>
@@ -233,6 +266,7 @@ class TimerApp {
                         <span class="threshold-time" id="threshold-4-${newTimerId}">04:00</span>
                     </div>
                 </div>
+                <button class="start-btn" data-id="${newTimerId}">Start</button>
             </div>
         `;
         
@@ -247,6 +281,11 @@ class TimerApp {
             elapsed: 0,
             interval: null
         });
+        
+        // If any timer is active, set the new timer to inactive
+        if (this.activeTimerId !== null) {
+            document.querySelector(`.timer[data-id="${newTimerId}"]`).classList.add('inactive');
+        }
     }
     
     startTimer(timerId) {
@@ -257,17 +296,43 @@ class TimerApp {
         this.stopAllTimers();
         
         timer.running = true;
-        timer.startTime = Date.now() - timer.elapsed;
+        timer.startTime = Date.now();
+        timer.elapsed = 0; // Reset elapsed time when starting
         this.activeTimerId = timerId;
+        
+        // Set all other timers to inactive
+        document.querySelectorAll('.timer').forEach(timerEl => {
+            if (timerEl.dataset.id != timerId) {
+                timerEl.classList.add('inactive');
+            }
+        });
         
         timer.interval = setInterval(() => {
             this.updateTimer(timerId);
         }, 100);
         
-        // Change button text
+        // Change button text and appearance
         const startBtn = document.querySelector(`.start-btn[data-id="${timerId}"]`);
         startBtn.textContent = 'Running';
         startBtn.disabled = true;
+        startBtn.classList.add('running');
+        
+        // Enable the stop button
+        const stopBtn = document.querySelector('.stop-btn');
+        if (stopBtn) {
+            stopBtn.disabled = false;
+        }
+        
+        // Disable the add button
+        const addBtn = document.querySelector('.add-timer-btn');
+        if (addBtn) {
+            addBtn.disabled = true;
+        }
+        
+        // Reset elapsed time display
+        if (this.elapsedTimeDisplay) {
+            this.elapsedTimeDisplay.textContent = '00:00';
+        }
     }
     
     stopAllTimers() {
@@ -275,16 +340,42 @@ class TimerApp {
             if (timer.running) {
                 clearInterval(timer.interval);
                 timer.running = false;
+                timer.elapsed = 0; // Reset elapsed time
                 
                 // Reset button
                 const startBtn = document.querySelector(`.start-btn[data-id="${timer.id}"]`);
-                startBtn.textContent = 'Start';
-                startBtn.disabled = false;
+                if (startBtn) {
+                    startBtn.textContent = 'Start';
+                    startBtn.disabled = false;
+                    startBtn.classList.remove('running');
+                }
             }
+        });
+        
+        // Remove inactive class from all timers
+        document.querySelectorAll('.timer').forEach(timerEl => {
+            timerEl.classList.remove('inactive');
         });
         
         this.activeTimerId = null;
         document.body.className = 'grey';
+        
+        // Disable the stop button
+        const stopBtn = document.querySelector('.stop-btn');
+        if (stopBtn) {
+            stopBtn.disabled = true;
+        }
+        
+        // Enable the add button
+        const addBtn = document.querySelector('.add-timer-btn');
+        if (addBtn) {
+            addBtn.disabled = false;
+        }
+        
+        // Reset elapsed time display
+        if (this.elapsedTimeDisplay) {
+            this.elapsedTimeDisplay.textContent = '00:00';
+        }
     }
     
     updateTimer(timerId) {
@@ -294,13 +385,15 @@ class TimerApp {
         const now = Date.now();
         timer.elapsed = now - timer.startTime;
         
-        // Update display
+        // Update elapsed time display
         const seconds = Math.floor(timer.elapsed / 1000);
         const displayMinutes = Math.floor(seconds / 60);
         const displaySeconds = seconds % 60;
         
-        const timeDisplay = document.getElementById(`current-time-${timerId}`);
-        timeDisplay.textContent = `${String(displayMinutes).padStart(2, '0')}:${String(displaySeconds).padStart(2, '0')}`;
+        if (this.elapsedTimeDisplay) {
+            this.elapsedTimeDisplay.textContent = 
+                `${String(displayMinutes).padStart(2, '0')}:${String(displaySeconds).padStart(2, '0')}`;
+        }
         
         // Check thresholds
         this.checkThresholds(timerId, seconds);
