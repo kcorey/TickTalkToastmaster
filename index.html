@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timer PWA</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#808080">
+</head>
+<body class="grey">
+    <div class="container">
+        <div class="timer-dialog">
+            <h1>Timer App</h1>
+            <div class="timers-container" id="timers-container">
+                <!-- Timers will be added here dynamically -->
+                <div class="timer" data-id="1">
+                    <div class="timer-display">
+                        <span class="timer-label">Timer 1</span>
+                        <span class="timer-time" id="current-time-1">00:00</span>
+                    </div>
+                    <div class="timer-controls">
+                        <button class="start-btn" data-id="1">Start</button>
+                    </div>
+                    <div class="timer-thresholds">
+                        <div class="threshold" data-point="1" data-id="1">
+                            <span class="threshold-label">Green</span>
+                            <span class="threshold-time" id="threshold-1-1">01:00</span>
+                        </div>
+                        <div class="threshold" data-point="2" data-id="1">
+                            <span class="threshold-label">Yellow</span>
+                            <span class="threshold-time" id="threshold-2-1">02:00</span>
+                        </div>
+                        <div class="threshold" data-point="3" data-id="1">
+                            <span class="threshold-label">Red</span>
+                            <span class="threshold-time" id="threshold-3-1">03:00</span>
+                        </div>
+                        <div class="threshold" data-point="4" data-id="1">
+                            <span class="threshold-label">Bell</span>
+                            <span class="threshold-time" id="threshold-4-1">04:00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="global-controls">
+                <button id="stop-all-btn" class="stop-btn">Stop All</button>
+                <button id="add-timer-btn">Add Timer</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="time-picker-overlay" class="overlay hidden">
+        <div class="time-wheel-container">
+            <div class="time-wheel" id="time-wheel"></div>
+            <div class="selected-time" id="selected-time">03:00</div>
+        </div>
+    </div>
+
+    <audio id="bell-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
+    <script src="js/timer.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html> 
