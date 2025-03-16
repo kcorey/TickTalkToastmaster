@@ -1102,7 +1102,7 @@ class TimerApp {
                     this.playBellSound();
                 } else if (i < 3) {
                     // For other thresholds, play appropriate sound
-                    this.playThresholdSound(i);
+                    //this.playThresholdSound(i);
                 }
                 
                 // Try to vibrate (for mobile devices)
