@@ -19,9 +19,9 @@ body {
 }
 
 body.grey { background-color: var(--grey); }
-body.green { background-color: var(--green); }
-body.yellow { background-color: var(--yellow); }
-body.red { background-color: var(--red); }
+body.green-phase { background-color: var(--green); }
+body.yellow-phase { background-color: var(--yellow); }
+body.red-phase { background-color: var(--red); }
 
 .container {
     display: flex;

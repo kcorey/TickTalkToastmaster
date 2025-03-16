@@ -35,7 +35,7 @@ class TimerApp {
         }
         
         // Initialize threshold sounds
-        this.initializeThresholdSounds();
+        //this.initializeThresholdSounds();
         
         // Unlock audio on iOS
         this.setupAudioUnlock();
