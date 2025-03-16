@@ -75,6 +75,14 @@ class TimerApp {
                 this.currentTimerId = thresholdEl.dataset.id;
                 this.openTimeWheel();
             }
+            
+            // Timer title click
+            if (e.target.classList.contains('timer-title')) {
+                // Only allow editing if timer is not inactive
+                if (!e.target.closest('.timer').classList.contains('inactive')) {
+                    this.makeTimerTitleEditable(e.target);
+                }
+            }
         });
         
         // Close time wheel when clicking outside
@@ -279,7 +287,8 @@ class TimerApp {
             running: false,
             startTime: null,
             elapsed: 0,
-            interval: null
+            interval: null,
+            title: `Timer ${newTimerId}` // Add title property to store the name
         });
         
         // If any timer is active, set the new timer to inactive
@@ -431,5 +440,49 @@ class TimerApp {
             this.bellSound.currentTime = 0;
             this.bellSound.play().catch(e => console.log('Error playing sound:', e));
         }
+    }
+    
+    makeTimerTitleEditable(titleElement) {
+        const currentText = titleElement.textContent;
+        const timerId = titleElement.closest('.timer').dataset.id;
+        
+        // Create input element
+        const inputEl = document.createElement('input');
+        inputEl.type = 'text';
+        inputEl.value = currentText;
+        inputEl.className = 'timer-title-input';
+        inputEl.dataset.timerId = timerId;
+        
+        // Replace title with input
+        titleElement.replaceWith(inputEl);
+        
+        // Focus and move cursor to end
+        inputEl.focus();
+        inputEl.setSelectionRange(inputEl.value.length, inputEl.value.length);
+        
+        // Handle enter key
+        inputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                this.saveTimerTitle(inputEl);
+            }
+        });
+        
+        // Handle blur (clicking outside)
+        inputEl.addEventListener('blur', () => {
+            this.saveTimerTitle(inputEl);
+        });
+    }
+    
+    saveTimerTitle(inputEl) {
+        const newTitle = inputEl.value.trim();
+        const timerId = inputEl.dataset.timerId;
+        
+        // Create new title element
+        const titleEl = document.createElement('div');
+        titleEl.className = 'timer-title';
+        titleEl.textContent = newTitle || `Timer ${timerId}`;  // Use default if empty
+        
+        // Replace input with title
+        inputEl.replaceWith(titleEl);
     }
 } 
