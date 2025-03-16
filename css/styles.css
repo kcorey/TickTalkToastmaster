@@ -1,0 +1,32 @@
+/* Add or update these styles in your CSS */
+
+/* Use more specific selectors and !important for Safari */
+body {
+    background-color: #f0f0f0 !important; /* Default gray */
+    transition: background-color 0.5s ease;
+    -webkit-transition: background-color 0.5s ease; /* For Safari */
+}
+
+body.green-phase {
+    background-color: #d4edda !important; /* Green */
+}
+
+body.yellow-phase {
+    background-color: #fff3cd !important; /* Yellow */
+}
+
+body.red-phase {
+    background-color: #f8d7da !important; /* Red */
+}
+
+/* Add this for iOS Safari-specific fix */
+@supports (-webkit-touch-callout: none) {
+    /* iOS-specific styles */
+    body, html {
+        height: 100%;
+        width: 100%;
+        position: fixed;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+} 

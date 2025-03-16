@@ -18,6 +18,14 @@ class TimerApp {
         this.stopButton = document.querySelector('.stop-btn');
         this.addTimerButton = document.querySelector('.add-timer-btn');
         
+        // Check if running on iOS
+        this.isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        
+        if (this.isIOS) {
+            console.log("iOS device detected - using special audio handling");
+        }
+        
         // Create sounds directory if needed for local testing
         this.checkSoundsDirectory();
         
@@ -44,6 +52,12 @@ class TimerApp {
         }
         
         this.setupEventListeners();
+        
+        // Call this method later in the constructor (after UI elements are initialized)
+        this.setupIOSAudioFix();
+        
+        // Add debug panel for iOS
+        this.setupDebugPanel();
     }
     
     // Create and initialize all sounds
@@ -968,8 +982,14 @@ class TimerApp {
 
     // Play the bell sound
     playBellSound() {
-        if (this.bellSound) {
-            // Reset to beginning in case it's already playing
+        if (this.isIOS) {
+            if (this.iosSounds && this.iosSounds.bell) {
+                this.iosSounds.bell.currentTime = 0;
+                this.iosSounds.bell.volume = 1.0;
+                this.iosSounds.bell.play().catch(e => console.error('iOS bell sound error:', e));
+            }
+        } else if (this.bellSound) {
+            // Non-iOS handling
             this.bellSound.currentTime = 0;
             this.bellSound.play().catch(e => console.log('Error playing bell sound:', e));
         }
@@ -977,23 +997,31 @@ class TimerApp {
 
     // Play a threshold sound based on which threshold was crossed
     playThresholdSound(threshold) {
-        if (!this.thresholdSounds) return;
-        
-        try {
-            let sound;
-            switch(threshold) {
-                case 0: sound = this.thresholdSounds.green; break;
-                case 1: sound = this.thresholdSounds.yellow; break;
-                case 2: sound = this.thresholdSounds.red; break;
-                case 3: return this.playBellSound(); // Use the bell sound for threshold 3
+        if (this.isIOS) {
+            if (this.iosSounds && this.iosSounds.lowbeep) {
+                this.iosSounds.lowbeep.currentTime = 0;
+                // Adjust volume based on threshold
+                this.iosSounds.lowbeep.volume = 0.1 + (threshold * 0.05);
+                this.iosSounds.lowbeep.play().catch(e => console.error(`iOS threshold sound error:`, e));
             }
-            
-            if (sound) {
-                sound.currentTime = 0;
-                sound.play().catch(e => console.log(`Error playing threshold ${threshold} sound:`, e));
+        } else if (this.thresholdSounds) {
+            // Original non-iOS handling
+            try {
+                let sound;
+                switch(threshold) {
+                    case 0: sound = this.thresholdSounds.green; break;
+                    case 1: sound = this.thresholdSounds.yellow; break;
+                    case 2: sound = this.thresholdSounds.red; break;
+                    case 3: return this.playBellSound();
+                }
+                
+                if (sound) {
+                    sound.currentTime = 0;
+                    sound.play().catch(e => console.log(`Error playing threshold ${threshold} sound:`, e));
+                }
+            } catch (err) {
+                console.error('Error playing threshold sound:', err);
             }
-        } catch (err) {
-            console.error('Error playing threshold sound:', err);
         }
     }
 
@@ -1114,5 +1142,125 @@ class TimerApp {
             console.warn('sounds/lowbeep.mp3 not found! Please create a "sounds" directory and add lowbeep.mp3');
             console.info('For local testing, you can use any MP3 file and rename it to lowbeep.mp3');
         });
+    }
+
+    // Add this new method for iOS audio fixes
+    setupIOSAudioFix() {
+        if (!this.isIOS) return;
+        
+        // Create a button for iOS audio unlock
+        const audioUnlockBtn = document.createElement('button');
+        audioUnlockBtn.innerText = "Enable Sounds";
+        audioUnlockBtn.className = "ios-audio-unlock";
+        audioUnlockBtn.style.position = "fixed";
+        audioUnlockBtn.style.bottom = "10px";
+        audioUnlockBtn.style.right = "10px";
+        audioUnlockBtn.style.padding = "8px 12px";
+        audioUnlockBtn.style.background = "#007bff";
+        audioUnlockBtn.style.color = "white";
+        audioUnlockBtn.style.border = "none";
+        audioUnlockBtn.style.borderRadius = "4px";
+        audioUnlockBtn.style.zIndex = "9999";
+        
+        // Add the button to the DOM
+        document.body.appendChild(audioUnlockBtn);
+        
+        // Create a new implementation of audio for iOS
+        this.iosSounds = {
+            lowbeep: new Audio('sounds/lowbeep.mp3'),
+            bell: this.bellSound || new Audio('sounds/bell.mp3')
+        };
+        
+        // Apply iOS-specific attributes to all sounds
+        for (let key in this.iosSounds) {
+            this.iosSounds[key].preload = 'auto';
+            this.iosSounds[key].controls = false;
+            this.iosSounds[key].muted = false;
+        }
+        
+        // Add event listener for the unlock button
+        audioUnlockBtn.addEventListener('click', () => {
+            // Try to play all sounds with a silent volume
+            for (let key in this.iosSounds) {
+                const sound = this.iosSounds[key];
+                sound.volume = 0.01; // Very low but not zero
+                sound.play()
+                    .then(() => {
+                        sound.pause();
+                        sound.currentTime = 0;
+                        sound.volume = key === 'bell' ? 1.0 : 0.2; // Reset volume
+                        console.log(`iOS sound ${key} unlocked`);
+                    })
+                    .catch(e => console.error(`Failed to unlock iOS sound ${key}:`, e));
+            }
+            
+            // Hide the button after use
+            audioUnlockBtn.style.display = 'none';
+            
+            // Show success message
+            const msg = document.createElement('div');
+            msg.innerText = "Sounds enabled!";
+            msg.style.position = "fixed";
+            msg.style.bottom = "10px";
+            msg.style.right = "10px";
+            msg.style.padding = "8px 12px";
+            msg.style.background = "#28a745";
+            msg.style.color = "white";
+            msg.style.borderRadius = "4px";
+            msg.style.zIndex = "9999";
+            document.body.appendChild(msg);
+            
+            // Remove message after 2 seconds
+            setTimeout(() => msg.remove(), 2000);
+        });
+        
+        // Also unlock on any user interaction
+        const unlockOnInteraction = () => {
+            // Try to play the low beep sound
+            if (this.iosSounds.lowbeep) {
+                this.iosSounds.lowbeep.volume = 0.01;
+                this.iosSounds.lowbeep.play()
+                    .then(() => {
+                        this.iosSounds.lowbeep.pause();
+                        this.iosSounds.lowbeep.currentTime = 0;
+                        this.iosSounds.lowbeep.volume = 0.2;
+                    })
+                    .catch(e => console.error("Auto-unlock failed:", e));
+            }
+        };
+        
+        // Add event listeners for auto-unlock
+        document.addEventListener('touchstart', unlockOnInteraction, {once: true});
+        document.addEventListener('click', unlockOnInteraction, {once: true});
+    }
+
+    // Add this new method
+    setupDebugPanel() {
+        const debugPanel = document.getElementById('ios-debug-panel');
+        if (!debugPanel) return;
+        
+        // Only show on iOS or when using debug parameter
+        if (this.isIOS || window.location.search.includes('debug=true')) {
+            debugPanel.style.display = 'block';
+        }
+        
+        const debugInfo = document.getElementById('ios-debug-info');
+        if (debugInfo) {
+            debugInfo.innerHTML = `
+                <p>Device: ${navigator.userAgent}</p>
+                <p>iOS Detected: ${this.isIOS}</p>
+                <p>Audio Context: ${window.AudioContext ? 'Supported' : 'Not Supported'}</p>
+                <p>Screen: ${window.innerWidth}x${window.innerHeight}</p>
+            `;
+        }
+        
+        const testButton = document.getElementById('test-ios-sound');
+        if (testButton) {
+            testButton.addEventListener('click', () => {
+                alert('Testing sound playback...');
+                this.playBellSound();
+                setTimeout(() => this.playThresholdSound(0), 1000);
+            });
+        }
     }
 }
