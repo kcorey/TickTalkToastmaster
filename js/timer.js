@@ -31,7 +31,11 @@ class TimerApp {
         this.setupEventListeners();
         
         // Initialize audio context for feedback
+        this.audioInitialized = false;
         this.initAudioFeedback();
+        
+        // Debug flag
+        this.debugMode = true;
     }
     
     // Save timer data to localStorage
@@ -925,12 +929,13 @@ class TimerApp {
         
         let thresholdCrossed = null;
         
-        // Update background color and determine vibration
+        // Check exact threshold crossings
         if (seconds === thresholds[3]) {
             document.body.className = 'red';
             thresholdCrossed = 3;
+            this.debugLog('Crossed Bell threshold');
             
-            // Play bell if bell is enabled
+            // Play bell if enabled
             const timer = this.timers.find(t => t.id == timerId);
             if (timer && timer.bellEnabled) {
                 this.playBellSound();
@@ -938,12 +943,15 @@ class TimerApp {
         } else if (seconds === thresholds[2]) {
             document.body.className = 'red';
             thresholdCrossed = 2;
+            this.debugLog('Crossed Red threshold');
         } else if (seconds === thresholds[1]) {
             document.body.className = 'yellow';
             thresholdCrossed = 1;
+            this.debugLog('Crossed Yellow threshold');
         } else if (seconds === thresholds[0]) {
             document.body.className = 'green';
             thresholdCrossed = 0;
+            this.debugLog('Crossed Green threshold');
         } else if (seconds > thresholds[3]) {
             document.body.className = 'red';
         } else if (seconds > thresholds[2]) {
@@ -956,19 +964,21 @@ class TimerApp {
             document.body.className = 'grey';
         }
         
-        // Provide feedback when crossing thresholds
+        // Provide appropriate feedback
         if (thresholdCrossed !== null) {
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            this.debugLog(`Device is ${isIOS ? 'iOS' : 'not iOS'}`);
             
             if (!isIOS && 'vibrate' in navigator) {
                 // Use vibration on supported devices
-                const vibrationPattern = thresholdCrossed === 3 ? [300, 100, 300, 100, 300] :
-                                         thresholdCrossed === 2 ? [200, 100, 200] :
-                                         thresholdCrossed === 1 ? [150, 100] : [100];
-                navigator.vibrate(vibrationPattern);
+                const pattern = thresholdCrossed === 3 ? [300, 100, 300, 100, 300] :
+                               thresholdCrossed === 2 ? [200, 100, 200] :
+                               thresholdCrossed === 1 ? [150, 100] : [100];
+                navigator.vibrate(pattern);
+                this.debugLog('Vibration triggered');
             } else {
-                // Use tactile bass on iOS
-                this.playTactileBass(thresholdCrossed);
+                // Use audio feedback on iOS
+                this.playFeedbackTone(thresholdCrossed);
             }
         }
     }
@@ -981,91 +991,186 @@ class TimerApp {
     }
     
     initAudioFeedback() {
-        // We need to create the audio context after a user interaction
-        // due to iOS restrictions on audio autoplay
-        this.audioInitialized = false;
-        
-        // Add a one-time initialization for the audio
-        document.addEventListener('click', () => {
-            if (!this.audioInitialized) {
-                // Create audio context
-                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        // Function to initialize audio context
+        const initAudio = () => {
+            try {
+                // Create audio context with iOS-specific workarounds
+                window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.audioContext = new AudioContext();
+                
+                // iOS requires "unlocking" the audio context with a user interaction
+                if (this.audioContext.state === 'suspended') {
+                    this.audioContext.resume();
+                }
+                
                 this.audioInitialized = true;
-                console.log('Audio context initialized');
+                this.debugLog('Audio context initialized successfully');
+                
+                // Remove event listeners once initialized
+                document.removeEventListener('touchstart', initAudio);
+                document.removeEventListener('click', initAudio);
+                
+                // Play a silent sound to fully unlock audio on iOS
+                this.playSilentSound();
+            } catch (e) {
+                this.debugLog('Error initializing audio: ' + e.message);
             }
-        }, { once: true });
+        };
+        
+        // Add event listeners for both touch and click
+        document.addEventListener('touchstart', initAudio);
+        document.addEventListener('click', initAudio);
+        
+        // Also try to initialize on first timer start
+        const originalStartTimer = this.startTimer;
+        this.startTimer = (timerId) => {
+            if (!this.audioInitialized) {
+                initAudio();
+            }
+            originalStartTimer.call(this, timerId);
+        };
     }
     
-    // Add this new method to play tactile bass tones
-    playTactileBass(threshold) {
-        if (!this.audioContext || !this.audioInitialized) return;
+    // Play a silent sound to unlock iOS audio
+    playSilentSound() {
+        if (!this.audioContext) return;
         
-        // Create bass oscillator
-        const oscillator = this.audioContext.createOscillator();
-        const gainNode = this.audioContext.createGain();
+        try {
+            const buffer = this.audioContext.createBuffer(1, 1, 22050);
+            const source = this.audioContext.createBufferSource();
+            source.buffer = buffer;
+            source.connect(this.audioContext.destination);
+            source.start(0);
+            this.debugLog('Silent sound played');
+        } catch (e) {
+            this.debugLog('Error playing silent sound: ' + e.message);
+        }
+    }
+    
+    // Simpler, more reliable audio feedback function
+    playFeedbackTone(threshold) {
+        // Log debug info
+        this.debugLog(`Attempting to play feedback tone for threshold ${threshold}`);
         
-        // Set different patterns based on threshold
-        let frequency, duration, pattern;
-        
-        switch(threshold) {
-            case 0: // Green
-                frequency = 55; // A1 note
-                duration = 300;
-                pattern = [1];
-                break;
-            case 1: // Yellow
-                frequency = 49; // G1 note
-                duration = 300;
-                pattern = [1, 0.5, 1];
-                break;
-            case 2: // Red
-                frequency = 44; // F1 note
-                duration = 400;
-                pattern = [1, 0.5, 1, 0.5, 1];
-                break;
-            case 3: // Bell
-                frequency = 33; // E1 note
-                duration = 500;
-                pattern = [1, 0.5, 1, 0.5, 1, 0.5, 1];
-                break;
+        if (!this.audioContext || !this.audioInitialized) {
+            this.debugLog('Audio context not initialized');
+            return;
         }
         
-        // Play the pattern
-        this.playBassPattern(frequency, duration, pattern);
-    }
-    
-    playBassPattern(frequency, duration, pattern) {
-        let time = this.audioContext.currentTime;
-        
-        // Play each pulse in the pattern
-        pattern.forEach((value, index) => {
-            if (value > 0) {
-                // Create oscillator for this pulse
-                const oscillator = this.audioContext.createOscillator();
-                const gainNode = this.audioContext.createGain();
-                
-                // Use a combination of frequencies for stronger effect
-                oscillator.type = 'sine';
-                oscillator.frequency.value = frequency;
-                
-                // Set volume (not too loud, but enough to feel)
-                gainNode.gain.value = 0.7;
-                
-                // Connect and schedule
-                oscillator.connect(gainNode);
-                gainNode.connect(this.audioContext.destination);
-                
-                // Schedule start and stop
-                oscillator.start(time);
-                oscillator.stop(time + (duration/1000));
-                
-                // Quick fade out to avoid clicks
-                gainNode.gain.setValueAtTime(0.7, time);
-                gainNode.gain.exponentialRampToValueAtTime(0.001, time + (duration/1000));
+        try {
+            // Create oscillator and gain node
+            const oscillator = this.audioContext.createOscillator();
+            const gainNode = this.audioContext.createGain();
+            
+            // Set frequency based on threshold (using higher audible frequencies might be more reliable)
+            let frequency;
+            switch(threshold) {
+                case 0: // Green
+                    frequency = 65; // Higher bass note
+                    break;
+                case 1: // Yellow 
+                    frequency = 55; // Bass A
+                    break;
+                case 2: // Red
+                    frequency = 45; // Lower bass
+                    break;
+                case 3: // Bell
+                    frequency = 35; // Very low bass
+                    break;
+                default:
+                    frequency = 60;
             }
             
-            // Move time forward for next pulse
-            time += (duration / 1000) * (index < pattern.length - 1 ? 1.2 : 0);
-        });
+            // Configure oscillator
+            oscillator.type = 'sine';
+            oscillator.frequency.value = frequency;
+            
+            // Set volume (higher for better feeling on iOS)
+            gainNode.gain.value = 0.9;
+            
+            // Connect nodes
+            oscillator.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
+            
+            // Start and stop with proper scheduling
+            oscillator.start(this.audioContext.currentTime);
+            oscillator.stop(this.audioContext.currentTime + 0.5);
+            
+            // Log success
+            this.debugLog(`Feedback tone playing at ${frequency}Hz`);
+            
+            // Ensure context is running
+            if (this.audioContext.state !== 'running') {
+                this.audioContext.resume();
+            }
+        } catch (e) {
+            this.debugLog('Error playing feedback tone: ' + e.message);
+        }
+    }
+    
+    // Simple debug log helper
+    debugLog(message) {
+        if (this.debugMode) {
+            console.log(`[Timer Debug] ${message}`);
+            
+            // Add visual indicator for debugging on device
+            const debugEl = document.getElementById('debug-log');
+            if (!debugEl) {
+                const newDebugEl = document.createElement('div');
+                newDebugEl.id = 'debug-log';
+                newDebugEl.style.position = 'fixed';
+                newDebugEl.style.bottom = '10px';
+                newDebugEl.style.left = '10px';
+                newDebugEl.style.fontSize = '10px';
+                newDebugEl.style.color = '#fff';
+                newDebugEl.style.backgroundColor = 'rgba(0,0,0,0.5)';
+                newDebugEl.style.padding = '5px';
+                newDebugEl.style.zIndex = '9999';
+                document.body.appendChild(newDebugEl);
+            }
+            
+            const debugEl2 = document.getElementById('debug-log');
+            debugEl2.textContent = message;
+        }
+    }
+    
+    // Test function to check audio
+    testAudio() {
+        this.debugLog('Testing audio...');
+        
+        // Try to initialize audio if not done
+        if (!this.audioInitialized) {
+            try {
+                window.AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.audioContext = new AudioContext();
+                if (this.audioContext.state === 'suspended') {
+                    this.audioContext.resume();
+                }
+                this.audioInitialized = true;
+                this.debugLog('Audio initialized for test');
+            } catch (e) {
+                this.debugLog('Error initializing audio: ' + e.message);
+                return;
+            }
+        }
+        
+        // Play test sound
+        try {
+            const osc = this.audioContext.createOscillator();
+            const gain = this.audioContext.createGain();
+            
+            osc.frequency.value = 440; // A4 - easily audible
+            gain.gain.value = 0.5;
+            
+            osc.connect(gain);
+            gain.connect(this.audioContext.destination);
+            
+            osc.start();
+            osc.stop(this.audioContext.currentTime + 1);
+            
+            this.debugLog('Test sound should be playing...');
+        } catch (e) {
+            this.debugLog('Error playing test sound: ' + e.message);
+        }
     }
 } 
