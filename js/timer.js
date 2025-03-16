@@ -946,7 +946,7 @@ class TimerApp {
         }
         
         // Add dimmed class to control panel
-        const controlPanel = document.querySelector('.control-panel');
+        const controlPanel = document.querySelector('.timer-dialog');
         if (controlPanel) {
             controlPanel.classList.add('dimmed');
         }
@@ -1155,7 +1155,7 @@ class TimerApp {
         }
         
         // Remove dimmed class from control panel
-        const controlPanel = document.querySelector('.control-panel');
+        const controlPanel = document.querySelector('.timer-dialog');
         if (controlPanel) {
             controlPanel.classList.remove('dimmed');
         }
