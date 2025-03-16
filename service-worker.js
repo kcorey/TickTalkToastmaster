@@ -6,7 +6,11 @@ const ASSETS_TO_CACHE = [
     '/js/app.js',
     '/js/timer.js',
     '/manifest.json',
-    'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'
+    '/sounds/lowbeep.mp3',
+    '/sounds/mediumbeep.mp3',
+    '/sounds/highbeep.mp3',
+    '/sounds/bell.mp3',
+    '/sounds/beep.mp3'
 ];
 
 // Install event - cache assets
