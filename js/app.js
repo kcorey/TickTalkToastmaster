@@ -1,20 +1,22 @@
 // Initialize the app when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    const app = new TimerApp();
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize the TimerApp
+    window.timerApp = new TimerApp();
     
-    // Register service worker for offline functionality
-    if ('serviceWorker' in navigator) {
-        // Check if we're running on a proper origin (not file://)
-        if (window.location.protocol.startsWith('http')) {
-            navigator.serviceWorker.register('/service-worker.js')
-                .then(registration => {
-                    console.log('Service Worker registered with scope:', registration.scope);
-                })
-                .catch(error => {
-                    console.error('Service Worker registration failed:', error);
-                });
-        } else {
-            console.log('Service Worker not registered: Running from file:// URL. Use a web server for full PWA functionality.');
-        }
+    // Check if we're running locally or on a server
+    const isLocalFile = window.location.protocol === 'file:';
+    
+    // Register service worker for PWA only when not running as a local file
+    if ('serviceWorker' in navigator && !isLocalFile) {
+        navigator.serviceWorker.register('/service-worker.js')
+            .then(registration => {
+                console.log('Service Worker registered with scope:', registration.scope);
+            })
+            .catch(error => {
+                console.error('Service Worker registration failed:', error);
+            });
+    } else if (isLocalFile) {
+        console.log('Running in local file mode. Service Worker is not registered.');
+        console.log('For full PWA functionality, please use a web server or deploy to a hosting service.');
     }
 }); 
